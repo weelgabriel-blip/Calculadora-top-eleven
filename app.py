@@ -7,7 +7,7 @@ st.set_page_config(
 )
 
 st.title("⚽ Optimizador Definitivo e Inteligente - Top Eleven")
-st.caption("Motor Matemático de Precisión Milimétrica: Simulación Paralela + Curva Real Fast Learner")
+st.caption("Motor Matemático de Precisión Milimétrica: Simulación Paralela con Frenado Individual por Meta")
 
 # BASE DE DATOS DE DRILLS CON ATRIBUTOS ORDENADOS (Los 2 primeros SIEMPRE son Principales)
 DRILLS_BASE = {
@@ -56,9 +56,8 @@ ATTR_FISICO = ["Velocidad", "Aceleración", "Fuerza", "Forma", "Agilidad"]
 TODOS_ATRIBUTOS = sorted(list(set(ATTR_ATAQUE + ATTR_DEFENSA + ATTR_FISICO)))
 
 def obtener_ganancia_base_edad(edad):
-    """Calcula la velocidad de aprendizaje Fast Learner según la edad."""
     if edad <= 18:
-        return 0.54
+        return 0.55
     elif edad == 19:
         return 0.48
     elif edad == 20:
@@ -66,42 +65,51 @@ def obtener_ganancia_base_edad(edad):
     elif edad == 21:
         return 0.38
     elif edad == 22:
-        return 0.342 # Benchmark calibrado con Andrei Colmenarez
+        return 0.342
     else:
         return max(0.18, 0.342 - (edad - 22) * 0.03)
 
 def factor_freno_porcentaje(valor_attr):
-    """Aplica la ley de rendimientos decrecientes según el nivel actual del atributo."""
+    # Freno más suave y realista para jugadores jóvenes
     if valor_attr < 100.0:
         return 1.00
     elif valor_attr < 180.0:
-        return 0.85
+        return 0.90
     elif valor_attr < 250.0:
-        return 0.65
+        return 0.75
     elif valor_attr < 350.0:
-        return 0.45
+        return 0.60
     else:
-        return 0.30
+        return 0.45
 
-def simular_repeticion_drill(atributos, drill_nombre, base_edad, descuento_cond):
+def simular_repeticion_drill_con_freno(atributos, metas_dict, drill_nombre, base_edad, descuento_cond):
+    """
+    Simula 1 repetición. Solo sube los atributos que TODAVÍA NO hayan alcanzado su meta.
+    """
     info = DRILLS_BASE[drill_nombre]
     attrs_drill = info["attr"]
     
+    hubo_progreso = False
     for i, attr in enumerate(attrs_drill):
-        if attr in atributos:
+        if attr in atributos and attr in metas_dict:
+            # Si el atributo ya llegó o superó su meta, NO se entrena más en este drill
+            if atributos[attr] >= metas_dict[attr]:
+                continue
+                
             val_actual = atributos[attr]
             factor_tramo = factor_freno_porcentaje(val_actual)
             
-            # Los 2 primeros atributos del drill reciben ganancia PRINCIPAL
             if i < 2:
                 ganancia = base_edad * factor_tramo
-            else: # Los demás reciben ganancia de CASCADA (50%)
+            else:
                 ganancia = (base_edad * 0.50) * factor_tramo
                 
-            atributos[attr] += ganancia
+            # Evitar pasarse de la meta en la última repetición
+            atributos[attr] = min(metas_dict[attr], atributos[attr] + ganancia)
+            hubo_progreso = True
                 
-    costo_condicion = info["costo"] * descuento_cond
-    return costo_condicion
+    costo_condicion = info["costo"] * descuento_cond if hubo_progreso else 0.0
+    return costo_condicion, hubo_progreso
 
 # SIDEBAR
 st.sidebar.header("👤 Perfil del Jugador")
@@ -162,22 +170,25 @@ if btn_optimizar:
     plan_rutinas = []
     costo_condicion_total = 0.0
 
-    while any(atributos_dinamicos[attr] < target for attr, target in metas_dict.items()):
+    # Bucle de simulación inteligente
+    seguridad_bucle = 0
+    while any(atributos_dinamicos[attr] < metas_dict[attr] for attr in metas_dict) and seguridad_bucle < 3000:
+        seguridad_bucle += 1
+        
         metas_pendientes = {attr: target for attr, target in metas_dict.items() if atributos_dinamicos[attr] < target}
         
+        # Buscar el drill que cubra la mayor cantidad de metas pendientes como PRINCIPAL
         mejor_drill = None
         max_coincidencias = -1
         
         for d_name, d_info in DRILLS_BASE.items():
-            # Cuenta cuántas metas pendientes están en las PRIMERAS 2 posiciones del drill (Principales)
-            coincidencias_principales = sum(1 for attr in metas_pendientes if attr in d_info["attr"][:2])
-            if coincidencias_principales > max_coincidencias:
-                max_coincidencias = coincidencias_principales
+            coincidencias = sum(1 for attr in metas_pendientes if attr in d_info["attr"][:2])
+            if coincidencias > max_coincidencias:
+                max_coincidencias = coincidencias
                 mejor_drill = d_name
         
         if not mejor_drill or max_coincidencias == 0:
             attr_objetivo = list(metas_pendientes.keys())[0]
-            # Seleccionar drill donde ese atributo sea PRINCIPAL (esté de 1° o 2°)
             drills_compatibles = [k for k, v in DRILLS_BASE.items() if attr_objetivo in v["attr"][:2]]
             if drills_compatibles:
                 mejor_drill = drills_compatibles[0]
@@ -187,13 +198,20 @@ if btn_optimizar:
         reps_drill = 0
         costo_drill = 0.0
 
+        # Ejecutar repeticiones de este drill hasta que ninguna de sus metas pendientes mejore
         while True:
-            metas_del_drill = [attr for attr in metas_pendientes if attr in DRILLS_BASE[mejor_drill]["attr"]]
-            
-            if not metas_del_drill or all(atributos_dinamicos[attr] >= metas_dict[attr] for attr in metas_del_drill):
+            # Verificar si las metas de este drill ya se cumplieron
+            metas_del_drill_pendientes = [attr for attr in metas_pendientes if attr in DRILLS_BASE[mejor_drill]["attr"]]
+            if not metas_del_drill_pendientes or all(atributos_dinamicos[attr] >= metas_dict[attr] for attr in metas_del_drill_pendientes):
                 break
                 
-            costo_rep = simular_repeticion_drill(atributos_dinamicos, mejor_drill, base_edad, descuento_cond)
+            costo_rep, progreso = simular_repeticion_drill_con_freno(
+                atributos_dinamicos, metas_dict, mejor_drill, base_edad, descuento_cond
+            )
+            
+            if not progreso:
+                break
+                
             reps_drill += 1
             costo_drill += costo_rep
             costo_condicion_total += costo_rep
