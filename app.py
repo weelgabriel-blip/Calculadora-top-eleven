@@ -9,7 +9,6 @@ st.set_page_config(
 st.title("⚽ Optimizador de Precisión (Mono-Meta) - Top Eleven")
 st.caption("Especializado en llevar un atributo individual a su objetivo exacto con el menor consumo de Green Packs.")
 
-# BASE DE DATOS DE DRILLS CON ATRIBUTOS ORDENADOS (Los 2 primeros son Principales)
 DRILLS_BASE = {
     # ATAQUE
     "Remate 1 contra 1": {"cat": "Ataque", "int": "Fácil", "costo": 6.0, "attr": ["Definición", "Regate", "Aceleración", "Entradas", "Anticipación"]},
@@ -57,28 +56,23 @@ TODOS_ATRIBUTOS = sorted(list(set(ATTR_ATAQUE + ATTR_DEFENSA + ATTR_FISICO)))
 
 def obtener_ganancia_base_edad(edad):
     if edad <= 18:
-        return 0.55
-    elif edad == 19:
-        return 0.48
-    elif edad == 20:
-        return 0.42
-    elif edad == 21:
-        return 0.38
-    elif edad == 22:
-        return 0.342
+        return 0.68
+    elif edad <= 20:
+        return 0.62
+    elif edad <= 22:
+        return 0.58
     else:
-        return max(0.18, 0.342 - (edad - 22) * 0.03)
+        return 0.54
 
 def factor_freno_porcentaje(valor_attr):
-    # TABLA CALIBRADA EMPÍRICAMENTE (DATOS DE PEDRO ROJAS Y PRUEBAS REALES)
     if valor_attr < 100.0:
         return 1.00
     elif valor_attr < 150.0:
-        return 0.85
+        return 0.95
     elif valor_attr < 200.0:
-        return 0.43
+        return 0.80
     elif valor_attr < 250.0:
-        return 0.35
+        return 0.45
     elif valor_attr < 350.0:
         return 0.25
     else:
@@ -88,12 +82,10 @@ def simular_repeticion_mono_meta(atributos, attr_objetivo, meta_val, drill_nombr
     info = DRILLS_BASE[drill_nombre]
     attrs_drill = info["attr"]
     
-    # Calcular ganancia
     idx = attrs_drill.index(attr_objetivo)
     val_actual = atributos[attr_objetivo]
     factor_tramo = factor_freno_porcentaje(val_actual)
     
-    # Es principal si está en los primeros 2 lugares
     if idx < 2:
         ganancia = base_edad * factor_tramo
     else:
@@ -101,7 +93,6 @@ def simular_repeticion_mono_meta(atributos, attr_objetivo, meta_val, drill_nombr
         
     atributos[attr_objetivo] = min(meta_val, atributos[attr_objetivo] + ganancia)
     
-    # También actualizar los atributos secundarios en la ficha técnica
     for i, a in enumerate(attrs_drill):
         if a != attr_objetivo and a in atributos:
             v_act = atributos[a]
@@ -114,15 +105,15 @@ def simular_repeticion_mono_meta(atributos, attr_objetivo, meta_val, drill_nombr
 
 # SIDEBAR
 st.sidebar.header("👤 Perfil del Jugador")
-nombre_jugador = st.sidebar.text_input("Nombre", "Pedro Rojas")
-edad = st.sidebar.slider("Edad", 18, 36, 20)
+nombre_jugador = st.sidebar.text_input("Nombre", "Julio Lugo")
+edad = st.sidebar.slider("Edad", 18, 36, 23)
 fan_club = st.sidebar.checkbox("Descuento Club de Fans (-50%)", value=True)
 packs_disponibles = st.sidebar.number_input("Green Packs en cuenta", min_value=0, max_value=5000, value=2000)
 
 st.sidebar.markdown("---")
 st.sidebar.header("🎯 Configuración de META ÚNICA")
 
-meta_attr = st.sidebar.selectbox("Atributo Objetivo", TODOS_ATRIBUTOS, index=TODOS_ATRIBUTOS.index("Colocación"))
+meta_attr = st.sidebar.selectbox("Atributo Objetivo", TODOS_ATRIBUTOS, index=TODOS_ATRIBUTOS.index("Creatividad"))
 meta_val = st.sidebar.number_input("Porcentaje Meta (%)", min_value=1.0, max_value=500.0, value=200.0)
 
 # PANEL CENTRAL
@@ -134,12 +125,12 @@ valores_actuales = {}
 with c_at:
     st.markdown("### ⚔️ Ataque")
     for attr in ATTR_ATAQUE:
-        valores_actuales[attr] = st.number_input(f"{attr}", min_value=1.0, max_value=500.0, value=80.0, key=attr)
+        valores_actuales[attr] = st.number_input(f"{attr}", min_value=1.0, max_value=500.0, value=131.0 if attr=="Creatividad" else 80.0, key=attr)
 
 with c_de:
     st.markdown("### 🛡️ Defensa")
     for attr in ATTR_DEFENSA:
-        valores_actuales[attr] = st.number_input(f"{attr}", min_value=1.0, max_value=500.0, value=138.0 if attr=="Colocación" else 75.0, key=attr)
+        valores_actuales[attr] = st.number_input(f"{attr}", min_value=1.0, max_value=500.0, value=75.0, key=attr)
 
 with c_fi:
     st.markdown("### ⚡ Físico & Mental")
@@ -160,13 +151,11 @@ if btn_optimizar:
         descuento_cond = 0.5 if fan_club else 1.0
         base_edad = obtener_ganancia_base_edad(edad)
 
-        # Buscar el MEJOR drill donde el atributo sea PRINCIPAL
         drills_principales = [k for k, v in DRILLS_BASE.items() if meta_attr in v["attr"][:2]]
         
         if drills_principales:
             mejor_drill = drills_principales[0]
         else:
-            # Si no es principal en ninguno, seleccionar donde aparezca como secundario
             mejor_drill = [k for k, v in DRILLS_BASE.items() if meta_attr in v["attr"]][0]
 
         reps_total = 0
