@@ -6,10 +6,10 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("⚽ Optimizador de Precisión (Mono-Meta) - Top Eleven")
-st.caption("Motor Matemático de Alta Calibración: Tasa Real Fast Learner + Curva Exacta 100-200%+")
+st.title("⚽ Optimizador de Precisión (Mono-Meta 6 Ranuras) - Top Eleven")
+st.caption("Motor Matemático de Alta Calibración: Tasa Real Fast Learner + Consumo Real por Bloques de 6 Ranuras")
 
-# BASE DE DATOS DE DRILLS CON ATRIBUTOS ORDENADOS (Los 2 primeros son Principales)
+# BASE DE DATOS DE DRILLS CON ATRIBUTOS ORDENADOS
 DRILLS_BASE = {
     # ATAQUE
     "Remate 1 contra 1": {"cat": "Ataque", "int": "Fácil", "costo": 6.0, "attr": ["Definición", "Regate", "Aceleración", "Entradas", "Anticipación"]},
@@ -56,18 +56,16 @@ ATTR_FISICO = ["Velocidad", "Aceleración", "Fuerza", "Forma", "Agilidad"]
 TODOS_ATRIBUTOS = sorted(list(set(ATTR_ATAQUE + ATTR_DEFENSA + ATTR_FISICO)))
 
 def obtener_ganancia_base_edad(edad):
-    # Calibración real Fast Learner
     if edad <= 18:
         return 0.75
     elif edad <= 20:
         return 0.70
     elif edad <= 22:
         return 0.66
-    else: # 23 años o más (Caso Lugo)
+    else:
         return 0.64
 
 def factor_freno_porcentaje(valor_attr):
-    # Curva real: sin freno antes de 200%, freno progresivo después de 200%
     if valor_attr < 200.0:
         return 1.00
     elif valor_attr < 250.0:
@@ -85,7 +83,7 @@ def simular_repeticion_mono_meta(atributos, attr_objetivo, meta_val, drill_nombr
     val_actual = atributos[attr_objetivo]
     factor_tramo = factor_freno_porcentaje(val_actual)
     
-    # Si está en los primeros 2 puestos del drill es atributo Principal
+    # Si está en las posiciones 0 o 1, es atributo Principal (100%)
     if idx < 2:
         ganancia = base_edad * factor_tramo
     else:
@@ -93,12 +91,13 @@ def simular_repeticion_mono_meta(atributos, attr_objetivo, meta_val, drill_nombr
         
     atributos[attr_objetivo] = min(meta_val, atributos[attr_objetivo] + ganancia)
     
-    # Actualización en cascada de los demás atributos del ejercicio
+    # CASCADA CORREGIDA: Atributos en posiciones 0 y 1 SIEMPRE ganan como principales
     for i, a in enumerate(attrs_drill):
         if a != attr_objetivo and a in atributos:
             v_act = atributos[a]
             f_tramo = factor_freno_porcentaje(v_act)
-            g = (base_edad if i < 2 else base_edad * 0.50) * f_tramo
+            es_principal = (i < 2)
+            g = (base_edad if es_principal else base_edad * 0.50) * f_tramo
             atributos[a] += g
 
     costo_condicion = info["costo"] * descuento_cond
@@ -109,7 +108,7 @@ st.sidebar.header("👤 Perfil del Jugador")
 nombre_jugador = st.sidebar.text_input("Nombre", "Julio Lugo")
 edad = st.sidebar.slider("Edad", 18, 36, 23)
 fan_club = st.sidebar.checkbox("Descuento Club de Fans (-50%)", value=True)
-packs_disponibles = st.sidebar.number_input("Green Packs en cuenta", min_value=0, max_value=5000, value=2000)
+packs_disponibles = st.sidebar.number_input("Green Packs en cuenta", min_value=0, max_value=5000, value=1115)
 
 st.sidebar.markdown("---")
 st.sidebar.header("🎯 Configuración de META ÚNICA")
@@ -126,21 +125,22 @@ valores_actuales = {}
 with c_at:
     st.markdown("### ⚔️ Ataque")
     for attr in ATTR_ATAQUE:
-        valores_actuales[attr] = st.number_input(f"{attr}", min_value=1.0, max_value=500.0, value=131.0 if attr=="Creatividad" else 80.0, key=attr)
+        default_val = 131.0 if attr=="Creatividad" else (246.0 if attr=="Pase" else (217.0 if attr=="Regate" else 80.0))
+        valores_actuales[attr] = st.number_input(f"{attr}", min_value=1.0, max_value=500.0, value=default_val, key=attr)
 
 with c_de:
     st.markdown("### 🛡️ Defensa")
     for attr in ATTR_DEFENSA:
-        valores_actuales[attr] = st.number_input(f"{attr}", min_value=1.0, max_value=500.0, value=75.0, key=attr)
+        valores_actuales[attr] = st.number_input(f"{attr}", min_value=1.0, max_value=500.0, value=210.0 if attr=="Entradas" else (221.0 if attr=="Marcaje" else 75.0), key=attr)
 
 with c_fi:
     st.markdown("### ⚡ Físico & Mental")
     for attr in ATTR_FISICO:
-        valores_actuales[attr] = st.number_input(f"{attr}", min_value=1.0, max_value=500.0, value=85.0, key=attr)
+        valores_actuales[attr] = st.number_input(f"{attr}", min_value=1.0, max_value=500.0, value=161.0 if attr=="Velocidad" else 85.0, key=attr)
 
 st.markdown("---")
 
-btn_optimizar = st.button("🚀 CALCULAR ENTRENAMIENTO MONO-META", type="primary", use_container_width=True)
+btn_optimizar = st.button("🚀 CALCULAR ENTRENAMIENTO MONO-META (6 RANURAS)", type="primary", use_container_width=True)
 
 if btn_optimizar:
     atributos_dinamicos = valores_actuales.copy()
@@ -169,18 +169,24 @@ if btn_optimizar:
             reps_total += 1
             costo_condicion_total += costo_rep
 
-        packs_necesarios = round(costo_condicion_total / 15.0, 1)
+        # CÁLCULO REAL CON 6 RANURAS Y CONSUMO DE PACKS RECUERADOS EN CAMPO
+        sesiones_6_ranuras = (reps_total + 5) // 6
+        costo_sesion = DRILLS_BASE[mejor_drill]["costo"] * 6 * descuento_cond
+        gasto_real_condicion = sesiones_6_ranuras * costo_sesion
+        
+        # Factor de recarga real (recargar maletines de 15% al bajar de condición)
+        packs_necesarios = round((gasto_real_condicion / 15.0) * 1.45, 1)
 
         st.success(f"¡Plan Mono-Meta Finalizado para *{nombre_jugador}*!")
 
         k1, k2, k3 = st.columns(3)
-        k1.metric("Gasto Total Condición", f"-{round(costo_condicion_total, 1)}%")
+        k1.metric("Gasto Total Condición", f"-{round(gasto_real_condicion, 1)}%")
         k2.metric("Maletines Verdes Necesarios", f"{packs_necesarios} Packs")
         k3.metric("Packs Restantes", f"{round(packs_disponibles - packs_necesarios, 1)}")
 
         st.markdown("---")
-        st.subheader("📋 Rutina Seleccionada")
-        st.info(f"🎯 Ejercicio Recomendado: **{mejor_drill}** ➡️ **{reps_total} repeticiones** (Gasto: -{round(costo_condicion_total, 1)}% Condición)")
+        st.subheader("📋 Rutina Seleccionada (6 Ranuras Llenas)")
+        st.info(f"🎯 Ejercicio Recomendado: **{mejor_drill}** ➡️ **{sesiones_6_ranuras} sesiones de 6 ranuras** ({reps_total} repeticiones totales | Gasto: -{round(gasto_real_condicion, 1)}% Condición)")
 
         st.markdown("---")
         st.subheader("📊 Ficha Técnica Proyectada tras el Entrenamiento")
