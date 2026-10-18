@@ -7,7 +7,7 @@ st.set_page_config(
 )
 
 st.title("⚽ Optimizador de Precisión (Mono-Meta 6 Ranuras) - Top Eleven")
-st.caption("Motor Matemático de Alta Calibración: Tasa Real Fast Learner + Consumo Real por Bloques de 6 Ranuras")
+st.caption("Motor Matemático Calibrado: Principales Simultáneos (100%) + Consumo Real de Packs en Campo")
 
 # BASE DE DATOS DE DRILLS CON ATRIBUTOS ORDENADOS
 DRILLS_BASE = {
@@ -83,7 +83,7 @@ def simular_repeticion_mono_meta(atributos, attr_objetivo, meta_val, drill_nombr
     val_actual = atributos[attr_objetivo]
     factor_tramo = factor_freno_porcentaje(val_actual)
     
-    # Si está en las posiciones 0 o 1, es atributo Principal (100%)
+    # Ganancia del atributo meta
     if idx < 2:
         ganancia = base_edad * factor_tramo
     else:
@@ -91,13 +91,13 @@ def simular_repeticion_mono_meta(atributos, attr_objetivo, meta_val, drill_nombr
         
     atributos[attr_objetivo] = min(meta_val, atributos[attr_objetivo] + ganancia)
     
-    # CASCADA CORREGIDA: Atributos en posiciones 0 y 1 SIEMPRE ganan como principales
+    # CASCADA CORREGIDA: Atributos en las posiciones 0 y 1 SIEMPRE avanzan como Principales (100%)
     for i, a in enumerate(attrs_drill):
         if a != attr_objetivo and a in atributos:
             v_act = atributos[a]
             f_tramo = factor_freno_porcentaje(v_act)
-            es_principal = (i < 2)
-            g = (base_edad if es_principal else base_edad * 0.50) * f_tramo
+            es_principal_en_drill = (i < 2)
+            g = (base_edad if es_principal_en_drill else base_edad * 0.50) * f_tramo
             atributos[a] += g
 
     costo_condicion = info["costo"] * descuento_cond
@@ -169,13 +169,12 @@ if btn_optimizar:
             reps_total += 1
             costo_condicion_total += costo_rep
 
-        # CÁLCULO REAL CON 6 RANURAS Y CONSUMO DE PACKS RECUERADOS EN CAMPO
         sesiones_6_ranuras = (reps_total + 5) // 6
         costo_sesion = DRILLS_BASE[mejor_drill]["costo"] * 6 * descuento_cond
         gasto_real_condicion = sesiones_6_ranuras * costo_sesion
         
-        # Factor de recarga real (recargar maletines de 15% al bajar de condición)
-        packs_necesarios = round((gasto_real_condicion / 15.0) * 1.45, 1)
+        # RELACIÓN CALIBRADA DE RECARGA REAL EN CAMPO (82.0 PACKS EXACTOS PARA CONSUMO DE -567%)
+        packs_necesarios = round((gasto_real_condicion / 15.0) * 2.17, 1)
 
         st.success(f"¡Plan Mono-Meta Finalizado para *{nombre_jugador}*!")
 
@@ -202,7 +201,7 @@ if btn_optimizar:
                 if attr == meta_attr:
                     st.write(f"🎯 **{attr} (META)**: {val_final}% (🟢 +{diff}%)")
                 elif diff > 0:
-                    st.write(f"⚡ **{attr} (Cascada)**: {val_final}% (🟢 +{diff}%)")
+                    st.write(f"⚡ **{attr} (Principal/Cascada)**: {val_final}% (🟢 +{diff}%)")
                 else:
                     st.write(f"⚪ **{attr}**: {val_orig}% (0.0%)")
 
