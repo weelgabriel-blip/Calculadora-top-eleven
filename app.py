@@ -6,10 +6,10 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("⚽ Optimizador de Precisión (Mono-Meta) - Top Eleven")
-st.caption("Motor Unificado: Principales al 100% + Cascadas al 50% + Calibración Exacta de Packs y Repeticiones")
+st.title("⚽ Optimizador de Precisión (Mono-Meta 6 Ranuras) - Top Eleven")
+st.caption("Motor de Alta Calibración: Cálculo Directo de Jerarquías de Campo")
 
-# BASE DE DATOS DE DRILLS CON ATRIBUTOS ORDENADOS
+# BASE DE DATOS DE DRILLS CON ATRIBUTOS ORDENADOS EXACTOS
 DRILLS_BASE = {
     # ATAQUE
     "Remate 1 contra 1": {"cat": "Ataque", "int": "Fácil", "costo": 6.0, "attr": ["Definición", "Regate", "Aceleración", "Entradas", "Anticipación"]},
@@ -74,30 +74,6 @@ def factor_freno_porcentaje(valor_attr):
         return 0.30
     else:
         return 0.18
-
-def simular_repeticion_mono_meta(atributos, attr_objetivo, meta_val, drill_nombre, base_edad, descuento_cond):
-    info = DRILLS_BASE[drill_nombre]
-    attrs_drill = info["attr"]
-    
-    idx_meta = attrs_drill.index(attr_objetivo)
-    val_actual_meta = atributos[attr_objetivo]
-    factor_tramo_meta = factor_freno_porcentaje(val_actual_meta)
-    
-    # Atributo Meta: Gana al 100% si está en posición 0 o 1, al 50% si está de 2 en adelante
-    ganancia_meta = (base_edad if idx_meta < 2 else base_edad * 0.50) * factor_tramo_meta
-    atributos[attr_objetivo] = min(meta_val, atributos[attr_objetivo] + ganancia_meta)
-    
-    # Atributos del Drill: Posición 0 y 1 son Principales (100%), Posición 2+ son Cascadas (50%)
-    for i, a in enumerate(attrs_drill):
-        if a != attr_objetivo and a in atributos:
-            v_act = atributos[a]
-            f_tramo = factor_freno_porcentaje(v_act)
-            es_principal = (i < 2)
-            g = (base_edad if es_principal else base_edad * 0.50) * f_tramo
-            atributos[a] += g
-
-    costo_condicion = info["costo"] * descuento_cond
-    return costo_condicion
 
 # SIDEBAR
 st.sidebar.header("👤 Perfil del Jugador")
@@ -173,28 +149,43 @@ if btn_optimizar:
         descuento_cond = 0.5 if fan_club else 1.0
         base_edad = obtener_ganancia_base_edad(edad)
 
+        # Selección del mejor drill
         drills_principales = [k for k, v in DRILLS_BASE.items() if meta_attr in v["attr"][:2]]
-        
         if drills_principales:
             mejor_drill = drills_principales[0]
         else:
             mejor_drill = [k for k, v in DRILLS_BASE.items() if meta_attr in v["attr"]][0]
 
-        reps_total = 0
-        costo_condicion_total = 0.0
+        attrs_drill = DRILLS_BASE[mejor_drill]["attr"]
+        idx_meta = attrs_drill.index(meta_attr)
 
-        while atributos_dinamicos[meta_attr] < meta_val and reps_total < 3000:
-            costo_rep = simular_repeticion_mono_meta(
-                atributos_dinamicos, meta_attr, meta_val, mejor_drill, base_edad, descuento_cond
-            )
-            reps_total += 1
-            costo_condicion_total += costo_rep
+        # 1. CALCULAR REPETICIONES EXACTAS NECESARIAS PARA LA META
+        diferencia_meta = meta_val - val_inicial
+        tasa_meta_rep = (base_edad if idx_meta < 2 else base_edad * 0.50) * factor_freno_porcentaje(val_inicial)
+        
+        reps_total = int(round(diferencia_meta / tasa_meta_rep))
+        
+        # Actualización explícita de la Meta
+        atributos_dinamicos[meta_attr] = float(meta_val)
 
+        # 2. CALCULAR AVANCE EXACTO DE CADA ATRIBUTO DEL DRILL
+        for pos, attr_nombre in enumerate(attrs_drill):
+            if attr_nombre != meta_attr and attr_nombre in atributos_dinamicos:
+                v_act = atributos_dinamicos[attr_nombre]
+                f_freno = factor_freno_porcentaje(v_act)
+                
+                # Posición 0 y 1 = 100% de la Tasa Base | Posición 2+ = 50% de la Tasa Base
+                es_principal = (pos < 2)
+                tasa_attr = (base_edad if es_principal else base_edad * 0.50) * f_freno
+                
+                ganancia_total = reps_total * tasa_attr
+                atributos_dinamicos[attr_nombre] = v_act + ganancia_total
+
+        # 3. CÁLCULO REAL DE SESIONES Y MALETINES
         sesiones_6_ranuras = (reps_total + 5) // 6
         costo_sesion = DRILLS_BASE[mejor_drill]["costo"] * 6 * descuento_cond
         gasto_real_condicion = sesiones_6_ranuras * costo_sesion
         
-        # Consumo calibrado de maletines verdes en recarga real
         packs_necesarios = round((gasto_real_condicion / 15.0) * 2.17, 1)
 
         st.success(f"¡Plan Mono-Meta Finalizado para *{nombre_jugador}*!")
@@ -222,7 +213,7 @@ if btn_optimizar:
                 if attr == meta_attr:
                     st.write(f"🎯 **{attr} (META)**: {val_final}% (🟢 +{diff}%)")
                 elif diff > 0:
-                    st.write(f"⚡ **{attr} (Cascada)**: {val_final}% (🟢 +{diff}%)")
+                    st.write(f"⚡ **{attr} (Cascada/Principal)**: {val_final}% (🟢 +{diff}%)")
                 else:
                     st.write(f"⚪ **{attr}**: {val_orig}% (0.0%)")
 
