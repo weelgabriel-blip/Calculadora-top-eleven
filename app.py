@@ -1,15 +1,15 @@
 import streamlit as st
 
 st.set_page_config(
-    page_title="Optimizador Mono-Meta v2.5 - Top Eleven",
+    page_title="Optimizador Mono-Meta v2.6 - Top Eleven",
     page_icon="⚽",
     layout="wide"
 )
 
-st.title("⚽ Optimizador de Precisión Mono-Meta (v2.5) - Top Eleven")
-st.caption("Modelo matemático completo basado en Drill Development Cap, absorción 2x de Habilidades Blancas y Multi-Rol.")
+st.title("⚽ Optimizador de Precisión Mono-Meta (v2.6) - Top Eleven")
+st.caption("Corregido: Atributos reales de Contraataque Rápido y calibración matemática a 111 repeticiones.")
 
-# 1. DICCIONARIO COMPLETO DE EJERCICIOS CON ATRIBUTOS EXACTOS
+# DICCIONARIO CORREGIDO DE EJERCICIOS
 DRILLS_BASE = {
     # ATAQUE
     "Remate 1 contra 1": {"cat": "Ataque", "costo": 6.0, "attr": ["Definición", "Regate", "Aceleración"]},
@@ -18,7 +18,7 @@ DRILLS_BASE = {
     "Técnica de disparo": {"cat": "Ataque", "costo": 7.5, "attr": ["Definición", "Disparo", "Agilidad"]},
     "Driblar en slalom": {"cat": "Ataque", "costo": 9.0, "attr": ["Regate", "Pase", "Velocidad"]},
     "Jugar en las bandas": {"cat": "Ataque", "costo": 9.0, "attr": ["Centro", "Definición", "Disparo", "Cabeceado"]},
-    "Contraataque rápido": {"cat": "Ataque", "costo": 10.5, "attr": ["Pase", "Creatividad", "Centro", "Disparo"]},
+    "Contraataque rápido": {"cat": "Ataque", "costo": 10.5, "attr": ["Pase", "Creatividad", "Centro", "Definición"]},
 
     # DEFENSA
     "Análisis de vídeos": {"cat": "Defensa", "costo": 4.5, "attr": ["Colocación", "Creatividad", "Valentía"]},
@@ -90,35 +90,29 @@ def obtener_factor_edad(edad):
     else:
         return max(0.20, 0.40 - ((edad - 25) * 0.04))
 
-def simular_repeticion_v2(atributos, attr_objetivo, meta_val, drill_nombre, nivel_drill, edad, descuento_cond, blancas):
+def simular_repeticion_v2_6(atributos, attr_objetivo, meta_val, drill_nombre, nivel_drill, edad, descuento_cond, blancas):
     info = DRILLS_BASE[drill_nombre]
     attrs_drill = info["attr"]
     
     factor_edad = obtener_factor_edad(edad)
     mult_nivel = MULT_NIVEL_DRILL[nivel_drill]
     
-    # 1. Suma actual del ejercicio y Cap Máximo (180% por atributo)
+    # 1. Desarrollo del ejercicio respecto al Cap
     vals_drill = [atributos.get(a, 0.0) for a in attrs_drill]
     suma_actual = sum(vals_drill)
     cap_maximo = len(attrs_drill) * 180.0
     
-    # Porcentaje de desarrollo del ejercicio
     desarrollo_pct = min(1.0, suma_actual / cap_maximo) if cap_maximo > 0 else 0.0
+    freno_desarrollo = max(0.15, 1.0 - 0.65 * desarrollo_pct)
     
-    # 2. Factor de atenuación según el desarrollo del ejercicio
-    freno_desarrollo = max(0.08, 1.0 - 0.75 * desarrollo_pct)
+    # Base de incremento por ranura blanca individual
+    base_incremento_blanca = 0.62 * factor_edad * mult_nivel * freno_desarrollo
     
-    # Pool total de XP generado por el set completo de 6 ranuras
-    pool_xp_total = 3.8 * factor_edad * mult_nivel * freno_desarrollo
-    
-    # 3. Asignación de pesos (Blancas = 2.0, Grises = 1.0)
-    pesos = [2.0 if a in blancas else 1.0 for a in attrs_drill]
-    peso_total = sum(pesos)
-    
-    # 4. Distribución exacta entre los atributos del ejercicio (Cascada)
-    for a, peso in zip(attrs_drill, pesos):
+    # 2. Asignación directa: Blancas reciben el 100% de la base, Grises el 50%
+    for a in attrs_drill:
         if a in atributos:
-            inc = (pool_xp_total / peso_total) * peso
+            mult_color = 1.0 if a in blancas else 0.5
+            inc = base_incremento_blanca * mult_color
             atributos[a] += inc
 
     costo_condicion = info["costo"] * descuento_cond
@@ -178,7 +172,7 @@ with c_fi:
 
 st.markdown("---")
 
-btn_optimizar = st.button("🚀 CALCULAR ENTRENAMIENTO MONO-META v2.5", type="primary", use_container_width=True)
+btn_optimizar = st.button("🚀 CALCULAR ENTRENAMIENTO MONO-META v2.6", type="primary", use_container_width=True)
 
 if btn_optimizar:
     atributos_dinamicos = valores_actuales.copy()
@@ -194,7 +188,7 @@ if btn_optimizar:
         costo_condicion_total = 0.0
 
         while atributos_dinamicos[meta_attr] < meta_val and reps_total < 3000:
-            costo_rep = simular_repeticion_v2(
+            costo_rep = simular_repeticion_v2_6(
                 atributos_dinamicos, meta_attr, meta_val, mejor_drill, nivel_drill, edad, descuento_cond, blancas_jugador
             )
             reps_total += 1
