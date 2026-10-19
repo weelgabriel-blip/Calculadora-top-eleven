@@ -1,15 +1,15 @@
 import streamlit as st
 
 st.set_page_config(
-    page_title="Optimizador Mono-Meta - Top Eleven v2.0",
+    page_title="Optimizador Mono-Meta v2.5 - Top Eleven",
     page_icon="⚽",
     layout="wide"
 )
 
-st.title("⚽ Optimizador de Precisión Mono-Meta (v2.0) - Top Eleven")
-st.caption("Basado en el modelo matemático de Drill Development, Nivel de Ejercicio y absorción $2\\times$ de Habilidades Blancas.")
+st.title("⚽ Optimizador de Precisión Mono-Meta (v2.5) - Top Eleven")
+st.caption("Modelo matemático completo basado en Drill Development Cap, absorción 2x de Habilidades Blancas y Multi-Rol.")
 
-# DICCIONARIO COMPLETO DE EJERCICIOS CON ATRIBUTOS EXACTOS
+# 1. DICCIONARIO COMPLETO DE EJERCICIOS CON ATRIBUTOS EXACTOS
 DRILLS_BASE = {
     # ATAQUE
     "Remate 1 contra 1": {"cat": "Ataque", "costo": 6.0, "attr": ["Definición", "Regate", "Aceleración"]},
@@ -55,24 +55,38 @@ MULT_NIVEL_DRILL = {
     "Clase Mundial": 1.31
 }
 
+HABILIDADES_BLANCAS_POR_ROL = {
+    "GK": ["Reflejos", "Agilidad", "Alcance aéreo", "Lanzamiento", "Puños", "Comunicación", "Colocación"],
+    "DR": ["Entradas", "Marcaje", "Colocación", "Cabeceado", "Pase", "Centro", "Velocidad"],
+    "DL": ["Entradas", "Marcaje", "Colocación", "Cabeceado", "Pase", "Centro", "Velocidad"],
+    "DC": ["Entradas", "Marcaje", "Colocación", "Cabeceado", "Valentía", "Fuerza", "Agresividad"],
+    "DMC": ["Entradas", "Marcaje", "Colocación", "Pase", "Creatividad", "Valentía", "Fuerza", "Agresividad"],
+    "MC": ["Pase", "Creatividad", "Disparo", "Regate", "Entradas", "Colocación", "Velocidad"],
+    "MR": ["Pase", "Centro", "Regate", "Velocidad", "Creatividad", "Colocación"],
+    "ML": ["Pase", "Centro", "Regate", "Velocidad", "Creatividad", "Colocación"],
+    "AMC": ["Pase", "Creatividad", "Disparo", "Definición", "Regate", "Velocidad"],
+    "AMR": ["Pase", "Centro", "Regate", "Definición", "Velocidad", "Creatividad"],
+    "AML": ["Pase", "Centro", "Regate", "Definición", "Velocidad", "Creatividad"],
+    "ST": ["Definición", "Disparo", "Cabeceado", "Regate", "Velocidad", "Fuerza", "Aceleración"]
+}
+
 ATTR_ATAQUE = ["Disparo", "Definición", "Centro", "Pase", "Regate", "Cabeceado", "Creatividad"]
 ATTR_DEFENSA = ["Marcaje", "Entradas", "Anticipación", "Colocación", "Agresividad", "Valentía", "Concentración"]
 ATTR_FISICO = ["Velocidad", "Aceleración", "Fuerza", "Agilidad"]
 TODOS_ATRIBUTOS = sorted(list(set(ATTR_ATAQUE + ATTR_DEFENSA + ATTR_FISICO)))
 
-# MAPEO DE HABILIDADES BLANCAS POR ROL COMÚN
-ROLES_BLANCOS = {
-    "MC": ["Pase", "Creatividad", "Disparo", "Entradas", "Colocación", "Velocidad", "Fuerza"],
-    "DMC": ["Pase", "Marcaje", "Entradas", "Colocación", "Valentía", "Fuerza", "Agresividad"],
-    "AMC": ["Pase", "Creatividad", "Regate", "Disparo", "Definición", "Velocidad"],
-    "DC": ["Marcaje", "Entradas", "Cabeceado", "Colocación", "Valentía", "Fuerza"]
-}
+def obtener_blancas_combinadas(roles):
+    blancas = set()
+    for r in roles:
+        if r in HABILIDADES_BLANCAS_POR_ROL:
+            blancas.update(HABILIDADES_BLANCAS_POR_ROL[r])
+    return list(blancas)
 
 def obtener_factor_edad(edad):
     if edad <= 21:
         return 1.00
     elif edad <= 25:
-        return max(0.40, 1.00 - ((edad - 21) * 0.15))
+        return max(0.40, 1.00 - ((edad - 21) * 0.12))
     else:
         return max(0.20, 0.40 - ((edad - 25) * 0.04))
 
@@ -83,18 +97,21 @@ def simular_repeticion_v2(atributos, attr_objetivo, meta_val, drill_nombre, nive
     factor_edad = obtener_factor_edad(edad)
     mult_nivel = MULT_NIVEL_DRILL[nivel_drill]
     
-    # 1. Calcular % de desarrollo del ejercicio (respecto a 180%)
+    # 1. Suma actual del ejercicio y Cap Máximo (180% por atributo)
     vals_drill = [atributos.get(a, 0.0) for a in attrs_drill]
-    promedio_drill = sum(vals_drill) / len(vals_drill) if vals_drill else 0.0
-    desarrollo_pct = min(1.0, promedio_drill / 180.0)
+    suma_actual = sum(vals_drill)
+    cap_maximo = len(attrs_drill) * 180.0
     
-    # 2. Freno de XP decreciente del ejercicio (Foro Top Eleven)
-    freno_xp = max(0.05, (1.0 - desarrollo_pct) ** 1.2)
+    # Porcentaje de desarrollo del ejercicio
+    desarrollo_pct = min(1.0, suma_actual / cap_maximo) if cap_maximo > 0 else 0.0
+    
+    # 2. Factor de atenuación según el desarrollo del ejercicio
+    freno_desarrollo = max(0.08, 1.0 - 0.75 * desarrollo_pct)
     
     # Pool total de XP generado por el set completo de 6 ranuras
-    pool_xp_total = 2.8 * factor_edad * mult_nivel * freno_xp
+    pool_xp_total = 3.8 * factor_edad * mult_nivel * freno_desarrollo
     
-    # 3. Pesos: Blanca = 2.0, Gris = 1.0 (absorción doble)
+    # 3. Asignación de pesos (Blancas = 2.0, Grises = 1.0)
     pesos = [2.0 if a in blancas else 1.0 for a in attrs_drill]
     peso_total = sum(pesos)
     
@@ -111,7 +128,15 @@ def simular_repeticion_v2(atributos, attr_objetivo, meta_val, drill_nombre, nive
 st.sidebar.header("👤 Perfil del Jugador")
 nombre_jugador = st.sidebar.text_input("Nombre", "Julio Lugo")
 edad = st.sidebar.slider("Edad", 18, 36, 23)
-rol_seleccionado = st.sidebar.selectbox("Rol del Jugador", ["MC", "DMC", "AMC", "DC"], index=0)
+
+roles_seleccionados = st.sidebar.multiselect(
+    "Roles del Jugador (Máx. 3)",
+    options=list(HABILIDADES_BLANCAS_POR_ROL.keys()),
+    default=["MC", "DMC"],
+    max_selections=3
+)
+blancas_jugador = obtener_blancas_combinadas(roles_seleccionados)
+
 fan_club = st.sidebar.checkbox("Descuento Club de Fans (-50%)", value=True)
 packs_disponibles = st.sidebar.number_input("Green Packs en cuenta", min_value=0, max_value=5000, value=2000)
 
@@ -124,7 +149,6 @@ nivel_drill = st.sidebar.selectbox("Nivel del Ejercicio", list(MULT_NIVEL_DRILL.
 # PANEL CENTRAL
 st.subheader("📋 Porcentajes Actuales del Jugador (%)")
 
-# Carga de valores por defecto idénticos a las capturas reales de Lugo
 defaults_julio = {
     "Pase": 246.0, "Creatividad": 131.0, "Centro": 92.0, "Disparo": 151.0, "Definición": 53.0,
     "Regate": 217.0, "Cabeceado": 143.0, "Marcaje": 221.0, "Entradas": 210.0, "Colocación": 192.0,
@@ -154,7 +178,7 @@ with c_fi:
 
 st.markdown("---")
 
-btn_optimizar = st.button("🚀 CALCULAR ENTRENAMIENTO MONO-META v2.0", type="primary", use_container_width=True)
+btn_optimizar = st.button("🚀 CALCULAR ENTRENAMIENTO MONO-META v2.5", type="primary", use_container_width=True)
 
 if btn_optimizar:
     atributos_dinamicos = valores_actuales.copy()
@@ -164,7 +188,6 @@ if btn_optimizar:
         st.warning(f"El atributo {meta_attr} ya alcanzó la meta ({val_inicial}% >= {meta_val}%).")
     else:
         descuento_cond = 0.5 if fan_club else 1.0
-        blancas_jugador = ROLES_BLANCOS.get(rol_seleccionado, [])
         mejor_drill = "Contraataque rápido"
 
         reps_total = 0
