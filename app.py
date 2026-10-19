@@ -197,3 +197,48 @@ if btn_optimizar:
 
         st.markdown("---")
         st.subheader("📋 Rutina Seleccionada (6 Ranuras Llenas)")
+        st.info(f"🎯 Ejercicio Recomendado: **{mejor_drill}** ➡️ **{sesiones_6_ranuras} sesiones de 6 ranuras** ({reps_total} repeticiones totales | Gasto: -{round(gasto_real_condicion, 1)}% Condición)")
+
+        st.markdown("---")
+        st.subheader("📊 Ficha Técnica Proyectada tras el Entrenamiento")
+
+        col_res_ataq, col_res_def, col_res_fis = st.columns(3)
+
+        with col_res_ataq:
+            st.markdown("#### ⚔️ Ataque")
+            for attr in ATTR_ATAQUE:
+                val_orig = valores_actuales[attr]
+                val_final = round(atributos_dinamicos[attr], 1)
+                diff = round(val_final - val_orig, 1)
+                if attr == meta_attr:
+                    st.write(f"🎯 **{attr} (META)**: {val_final}% (🟢 +{diff}%)")
+                elif diff > 0:
+                    st.write(f"⚡ **{attr} (Cascada/Principal)**: {val_final}% (🟢 +{diff}%)")
+                else:
+                    st.write(f"⚪ **{attr}**: {val_orig}% (0.0%)")
+
+        with col_res_def:
+            st.markdown("#### 🛡️ Defensa")
+            for attr in ATTR_DEFENSA:
+                val_orig = valores_actuales[attr]
+                val_final = round(atributos_dinamicos[attr], 1)
+                diff = round(val_final - val_orig, 1)
+                if attr == meta_attr:
+                    st.write(f"🎯 **{attr} (META)**: {val_final}% (🟢 +{diff}%)")
+                elif diff > 0:
+                    st.write(f"⚡ **{attr} (Cascada)**: {val_final}% (🟢 +{diff}%)")
+                else:
+                    st.write(f"⚪ **{attr}**: {val_orig}% (0.0%)")
+
+        with col_res_fis:
+            st.markdown("#### ⚡ Físico & Mental")
+            for attr in ATTR_FISICO:
+                val_orig = valores_actuales[attr]
+                val_final = round(atributos_dinamicos[attr], 1)
+                diff = round(val_final - val_orig, 1)
+                if attr == meta_attr:
+                    st.write(f"🎯 **{attr} (META)**: {val_final}% (🟢 +{diff}%)")
+                elif diff > 0:
+                    st.write(f"⚡ **{attr} (Cascada)**: {val_final}% (🟢 +{diff}%)")
+                else:
+                    st.write(f"⚪ **{attr}**: {val_orig}% (0.0%)")
