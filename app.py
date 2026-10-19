@@ -6,10 +6,10 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("⚽ Optimizador de Precisión (Mono-Meta 6 Ranuras) - Top Eleven")
-st.caption("Motor Unificado: Exención de Freno para Atributos Principales en Posición #1 y #2")
+st.title("⚽ Optimizador Mono-Meta (1 Repetición = 1 Sesión de 6 Ranuras)")
+st.caption("Motor Matemático Unificado Calibrado: 108 Sesiones Exactas para Contraataque Rápido")
 
-# BASE DE DATOS DE DRILLS CON ATRIBUTOS ORDENADOS EXACTOS
+# BASE DE DATOS DE DRILLS CON ATRIBUTOS ORDENADOS
 DRILLS_BASE = {
     # ATAQUE
     "Remate 1 contra 1": {"cat": "Ataque", "int": "Fácil", "costo": 6.0, "attr": ["Definición", "Regate", "Aceleración", "Entradas", "Anticipación"]},
@@ -55,7 +55,8 @@ ATTR_FISICO = ["Velocidad", "Aceleración", "Fuerza", "Forma", "Agilidad"]
 
 TODOS_ATRIBUTOS = sorted(list(set(ATTR_ATAQUE + ATTR_DEFENSA + ATTR_FISICO)))
 
-def obtener_ganancia_base_edad(edad):
+def obtener_ganancia_base_sesion(edad):
+    # GANANCIA BASE REAL POR SESIÓN DE 6 RANURAS (108 sesiones = +69%)
     if edad <= 18:
         return 0.75
     elif edad <= 20:
@@ -63,24 +64,25 @@ def obtener_ganancia_base_edad(edad):
     elif edad <= 22:
         return 0.66
     else:
-        return 0.64
+        return 0.64 # 0.64% por sesión de 6 ranuras
 
 def factor_freno_porcentaje(valor_attr):
+    # FRENO REAL SEGÚN EL NIVEL DEL ATRIBUTO
     if valor_attr < 200.0:
         return 1.00
     elif valor_attr < 250.0:
-        return 0.50
+        return 0.15625 # Freno exacto de Marcaje (+3% en 30 sesiones)
     elif valor_attr < 350.0:
-        return 0.30
+        return 0.09
     else:
-        return 0.18
+        return 0.05
 
 # SIDEBAR
 st.sidebar.header("👤 Perfil del Jugador")
 nombre_jugador = st.sidebar.text_input("Nombre", "Julio Lugo")
 edad = st.sidebar.slider("Edad", 18, 36, 23)
 fan_club = st.sidebar.checkbox("Descuento Club de Fans (-50%)", value=True)
-packs_disponibles = st.sidebar.number_input("Green Packs en cuenta", min_value=0, max_value=5000, value=1115)
+packs_disponibles = st.sidebar.number_input("Green Packs en cuenta", min_value=0, max_value=5000, value=1033)
 
 st.sidebar.markdown("---")
 st.sidebar.header("🎯 Configuración de META ÚNICA")
@@ -137,7 +139,7 @@ with c_fi:
 
 st.markdown("---")
 
-btn_optimizar = st.button("🚀 CALCULAR ENTRENAMIENTO MONO-META (6 RANURAS)", type="primary", use_container_width=True)
+btn_optimizar = st.button("🚀 CALCULAR ENTRENAMIENTO MONO-META", type="primary", use_container_width=True)
 
 if btn_optimizar:
     atributos_dinamicos = valores_actuales.copy()
@@ -147,7 +149,7 @@ if btn_optimizar:
         st.warning(f"El atributo {meta_attr} ya alcanzó o superó la meta ({val_inicial}% >= {meta_val}%).")
     else:
         descuento_cond = 0.5 if fan_club else 1.0
-        base_edad = obtener_ganancia_base_edad(edad)
+        base_sesion = obtener_ganancia_base_sesion(edad)
 
         # Selección del mejor drill
         drills_principales = [k for k, v in DRILLS_BASE.items() if meta_attr in v["attr"][:2]]
@@ -159,34 +161,46 @@ if btn_optimizar:
         attrs_drill = DRILLS_BASE[mejor_drill]["attr"]
         idx_meta = attrs_drill.index(meta_attr)
 
-        # 1. REPETICIONES TOTALES PARA LA META (108 Repeticiones)
-        diferencia_meta = meta_val - val_inicial
-        tasa_meta_rep = (base_edad if idx_meta < 2 else base_edad * 0.50) * (1.00 if idx_meta < 2 else factor_freno_porcentaje(val_inicial))
-        reps_total = int(round(diferencia_meta / tasa_meta_rep))
+        # CÁLCULO DIRECTO EN SESIONES COMPLETAS DE 6 RANURAS
+        f_freno_meta = factor_freno_porcentaje(val_inicial)
+        es_principal_meta = (idx_meta < 2)
         
-        # Meta fijada en 200%
+        # Atributos principales ignoran freno antes de 200%
+        if val_inicial < 200.0 and es_principal_meta:
+            tasa_meta_sesion = base_sesion
+        else:
+            tasa_meta_sesion = (base_sesion if es_principal_meta else base_sesion * 0.50) * f_freno_meta
+        
+        diferencia_meta = meta_val - val_inicial
+        sesiones_totales = int(round(diferencia_meta / tasa_meta_sesion))
+        
+        # Meta alcanzada
         atributos_dinamicos[meta_attr] = float(meta_val)
 
-        # 2. PROYECCIÓN CON LÓGICA CORREGIDA DE ATRIBUTOS PRINCIPALES vs CASCADA
+        # PROYECCIÓN DE ATRIBUTOS SECUNDARIOS
         for attr_nombre in attrs_drill:
             if attr_nombre != meta_attr and attr_nombre in atributos_dinamicos:
                 v_act = atributos_dinamicos[attr_nombre]
                 pos_en_drill = attrs_drill.index(attr_nombre)
+                es_principal = (pos_en_drill < 2)
                 
-                # SI ESTÁ EN POSICIÓN #1 O #2, ES ATRIBUTO PRINCIPAL Y GANA EL 100% SIN FRENO PREMATURO
-                if pos_en_drill < 2:
-                    tasa_attr = base_edad  # 👈 0.64% pleno (Suma +69.1% a Pases -> 315.1%)
+                f_freno = factor_freno_porcentaje(v_act)
+                
+                if v_act < 200.0 and es_principal:
+                    tasa_attr_sesion = base_sesion
+                elif v_act < 200.0 and not es_principal:
+                    tasa_attr_sesion = base_sesion * 0.50
                 else:
-                    tasa_attr = (base_edad * 0.50) * factor_freno_porcentaje(v_act)  # 👈 0.32% de Cascada (Centros y Definición -> 87%)
+                    tasa_attr_sesion = (base_sesion if es_principal else base_sesion * 0.50) * f_freno
                 
-                ganancia_total = reps_total * tasa_attr
+                ganancia_total = sesiones_totales * tasa_attr_sesion
                 atributos_dinamicos[attr_nombre] = v_act + ganancia_total
 
-        # 3. CÁLCULO DE SESIONES Y MALETINES
-        sesiones_6_ranuras = (reps_total + 5) // 6
-        costo_sesion = DRILLS_BASE[mejor_drill]["costo"] * 6 * descuento_cond
-        gasto_real_condicion = sesiones_6_ranuras * costo_sesion
+        # CÁLCULO DE CONDICIÓN Y GREEN PACKS (82 Packs para 108 sesiones)
+        costo_sesion_individual = DRILLS_BASE[mejor_drill]["costo"] * descuento_cond
+        gasto_real_condicion = sesiones_totales * costo_sesion_individual
         
+        # Relación exacta de recarga en campo
         packs_necesarios = round((gasto_real_condicion / 15.0) * 2.17, 1)
 
         st.success(f"¡Plan Mono-Meta Finalizado para *{nombre_jugador}*!")
@@ -197,8 +211,8 @@ if btn_optimizar:
         k3.metric("Packs Restantes", f"{round(packs_disponibles - packs_necesarios, 1)}")
 
         st.markdown("---")
-        st.subheader("📋 Rutina Seleccionada (6 Ranuras Llenas)")
-        st.info(f"🎯 Ejercicio Recomendado: **{mejor_drill}** ➡️ **{sesiones_6_ranuras} sesiones de 6 ranuras** ({reps_total} repeticiones totales | Gasto: -{round(gasto_real_condicion, 1)}% Condición)")
+        st.subheader("📋 Rutina Seleccionada")
+        st.info(f"🎯 Ejercicio Recomendado: **{mejor_drill}** ➡️ **{sesiones_totales} sesiones (de 6 ranuras)** (Gasto: -{round(gasto_real_condicion, 1)}% Condición)")
 
         st.markdown("---")
         st.subheader("📊 Ficha Técnica Proyectada tras el Entrenamiento")
