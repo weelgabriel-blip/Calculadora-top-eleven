@@ -6,8 +6,8 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("⚽ Optimizador de Precisión (Mono-Meta 6 Ranuras) - Top Eleven")
-st.caption("Motor Matemático Calibrado: Jerarquía Completa de Atributos + Valores Iniciales de Campo")
+st.title("⚽ Optimizador de Precisión (Mono-Meta) - Top Eleven")
+st.caption("Motor Unificado: Principales al 100% + Cascadas al 50% + Calibración Exacta de Packs y Repeticiones")
 
 # BASE DE DATOS DE DRILLS CON ATRIBUTOS ORDENADOS
 DRILLS_BASE = {
@@ -83,11 +83,11 @@ def simular_repeticion_mono_meta(atributos, attr_objetivo, meta_val, drill_nombr
     val_actual_meta = atributos[attr_objetivo]
     factor_tramo_meta = factor_freno_porcentaje(val_actual_meta)
     
-    # Ganancia para la meta seleccionada
+    # Atributo Meta: Gana al 100% si está en posición 0 o 1, al 50% si está de 2 en adelante
     ganancia_meta = (base_edad if idx_meta < 2 else base_edad * 0.50) * factor_tramo_meta
     atributos[attr_objetivo] = min(meta_val, atributos[attr_objetivo] + ganancia_meta)
     
-    # Actualización en cascada para TODOS los demás atributos del drill
+    # Atributos del Drill: Posición 0 y 1 son Principales (100%), Posición 2+ son Cascadas (50%)
     for i, a in enumerate(attrs_drill):
         if a != attr_objetivo and a in atributos:
             v_act = atributos[a]
@@ -118,7 +118,6 @@ st.subheader("📋 Porcentajes Actuales del Jugador (%)")
 c_at, c_de, c_fi = st.columns(3)
 valores_actuales = {}
 
-# VALORES INICIALES EXACTOS DE JULIO LUGO EN CAMPO
 DEFAULTS_JULIO_LUGO = {
     "Disparo": 151.0,
     "Definición": 53.0,
@@ -195,6 +194,7 @@ if btn_optimizar:
         costo_sesion = DRILLS_BASE[mejor_drill]["costo"] * 6 * descuento_cond
         gasto_real_condicion = sesiones_6_ranuras * costo_sesion
         
+        # Consumo calibrado de maletines verdes en recarga real
         packs_necesarios = round((gasto_real_condicion / 15.0) * 2.17, 1)
 
         st.success(f"¡Plan Mono-Meta Finalizado para *{nombre_jugador}*!")
