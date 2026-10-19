@@ -7,7 +7,7 @@ st.set_page_config(
 )
 
 st.title("⚽ Optimizador de Precisión (Mono-Meta 6 Ranuras) - Top Eleven")
-st.caption("Motor de Alta Calibración: Pases Forzados como Atributo Principal (100%)")
+st.caption("Motor Unificado: Exención de Freno para Atributos Principales en Posición #1 y #2")
 
 # BASE DE DATOS DE DRILLS CON ATRIBUTOS ORDENADOS EXACTOS
 DRILLS_BASE = {
@@ -159,26 +159,26 @@ if btn_optimizar:
         attrs_drill = DRILLS_BASE[mejor_drill]["attr"]
         idx_meta = attrs_drill.index(meta_attr)
 
-        # 1. REPETICIONES TOTALES PARA LA META (108 REPETICIONES)
+        # 1. REPETICIONES TOTALES PARA LA META (108 Repeticiones)
         diferencia_meta = meta_val - val_inicial
-        tasa_meta_rep = (base_edad if idx_meta < 2 else base_edad * 0.50) * factor_freno_porcentaje(val_inicial)
+        tasa_meta_rep = (base_edad if idx_meta < 2 else base_edad * 0.50) * (1.00 if idx_meta < 2 else factor_freno_porcentaje(val_inicial))
         reps_total = int(round(diferencia_meta / tasa_meta_rep))
         
         # Meta fijada en 200%
         atributos_dinamicos[meta_attr] = float(meta_val)
 
-        # 2. PROYECCIÓN DIRECCIÓN DIRECTA DE ATRIBUTOS
+        # 2. PROYECCIÓN CON LÓGICA CORREGIDA DE ATRIBUTOS PRINCIPALES vs CASCADA
         for attr_nombre in attrs_drill:
             if attr_nombre != meta_attr and attr_nombre in atributos_dinamicos:
                 v_act = atributos_dinamicos[attr_nombre]
-                f_freno = factor_freno_porcentaje(v_act)
-                
-                # REVISIÓN DE POSICIÓN EN LA LISTA DEL DRILL SELECCIONADO
                 pos_en_drill = attrs_drill.index(attr_nombre)
-                es_principal = (pos_en_drill < 2)
                 
-                # Si está en las posiciones 0 o 1 (como Pase) gana al 100%, si está de 2+ (como Centro) gana al 50%
-                tasa_attr = (base_edad if es_principal else base_edad * 0.50) * f_freno
+                # SI ESTÁ EN POSICIÓN #1 O #2, ES ATRIBUTO PRINCIPAL Y GANA EL 100% SIN FRENO PREMATURO
+                if pos_en_drill < 2:
+                    tasa_attr = base_edad  # 👈 0.64% pleno (Suma +69.1% a Pases -> 315.1%)
+                else:
+                    tasa_attr = (base_edad * 0.50) * factor_freno_porcentaje(v_act)  # 👈 0.32% de Cascada (Centros y Definición -> 87%)
+                
                 ganancia_total = reps_total * tasa_attr
                 atributos_dinamicos[attr_nombre] = v_act + ganancia_total
 
