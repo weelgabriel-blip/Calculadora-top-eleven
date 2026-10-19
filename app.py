@@ -7,7 +7,7 @@ st.set_page_config(
 )
 
 st.title("⚽ Optimizador de Precisión (Mono-Meta 6 Ranuras) - Top Eleven")
-st.caption("Motor de Alta Calibración: Cálculo Directo de Jerarquías de Campo")
+st.caption("Motor de Alta Calibración: Pases como Atributo Principal al 100%")
 
 # BASE DE DATOS DE DRILLS CON ATRIBUTOS ORDENADOS EXACTOS
 DRILLS_BASE = {
@@ -159,29 +159,29 @@ if btn_optimizar:
         attrs_drill = DRILLS_BASE[mejor_drill]["attr"]
         idx_meta = attrs_drill.index(meta_attr)
 
-        # 1. CALCULAR REPETICIONES EXACTAS NECESARIAS PARA LA META
+        # 1. REPETICIONES TOTALES PARA LA META
         diferencia_meta = meta_val - val_inicial
         tasa_meta_rep = (base_edad if idx_meta < 2 else base_edad * 0.50) * factor_freno_porcentaje(val_inicial)
-        
         reps_total = int(round(diferencia_meta / tasa_meta_rep))
         
-        # Actualización explícita de la Meta
+        # Meta fijada
         atributos_dinamicos[meta_attr] = float(meta_val)
 
-        # 2. CALCULAR AVANCE EXACTO DE CADA ATRIBUTO DEL DRILL
-        for pos, attr_nombre in enumerate(attrs_drill):
+        # 2. PROYECTAR TODOS LOS DEMÁS ATRIBUTOS SEGÚN SU ÍNDICE REAL EN EL DRILL
+        for attr_nombre in attrs_drill:
             if attr_nombre != meta_attr and attr_nombre in atributos_dinamicos:
                 v_act = atributos_dinamicos[attr_nombre]
                 f_freno = factor_freno_porcentaje(v_act)
                 
-                # Posición 0 y 1 = 100% de la Tasa Base | Posición 2+ = 50% de la Tasa Base
-                es_principal = (pos < 2)
-                tasa_attr = (base_edad if es_principal else base_edad * 0.50) * f_freno
+                # CORRECCIÓN DE PASES: Se evalúa su posición real en la lista del drill
+                pos_real = attrs_drill.index(attr_nombre)
+                es_principal = (pos_real < 2)
                 
+                tasa_attr = (base_edad if es_principal else base_edad * 0.50) * f_freno
                 ganancia_total = reps_total * tasa_attr
                 atributos_dinamicos[attr_nombre] = v_act + ganancia_total
 
-        # 3. CÁLCULO REAL DE SESIONES Y MALETINES
+        # 3. CÁLCULO DE SESIONES Y MALETINES IntactO
         sesiones_6_ranuras = (reps_total + 5) // 6
         costo_sesion = DRILLS_BASE[mejor_drill]["costo"] * 6 * descuento_cond
         gasto_real_condicion = sesiones_6_ranuras * costo_sesion
@@ -197,48 +197,3 @@ if btn_optimizar:
 
         st.markdown("---")
         st.subheader("📋 Rutina Seleccionada (6 Ranuras Llenas)")
-        st.info(f"🎯 Ejercicio Recomendado: **{mejor_drill}** ➡️ **{sesiones_6_ranuras} sesiones de 6 ranuras** ({reps_total} repeticiones totales | Gasto: -{round(gasto_real_condicion, 1)}% Condición)")
-
-        st.markdown("---")
-        st.subheader("📊 Ficha Técnica Proyectada tras el Entrenamiento")
-
-        col_res_ataq, col_res_def, col_res_fis = st.columns(3)
-
-        with col_res_ataq:
-            st.markdown("#### ⚔️ Ataque")
-            for attr in ATTR_ATAQUE:
-                val_orig = valores_actuales[attr]
-                val_final = round(atributos_dinamicos[attr], 1)
-                diff = round(val_final - val_orig, 1)
-                if attr == meta_attr:
-                    st.write(f"🎯 **{attr} (META)**: {val_final}% (🟢 +{diff}%)")
-                elif diff > 0:
-                    st.write(f"⚡ **{attr} (Cascada/Principal)**: {val_final}% (🟢 +{diff}%)")
-                else:
-                    st.write(f"⚪ **{attr}**: {val_orig}% (0.0%)")
-
-        with col_res_def:
-            st.markdown("#### 🛡️ Defensa")
-            for attr in ATTR_DEFENSA:
-                val_orig = valores_actuales[attr]
-                val_final = round(atributos_dinamicos[attr], 1)
-                diff = round(val_final - val_orig, 1)
-                if attr == meta_attr:
-                    st.write(f"🎯 **{attr} (META)**: {val_final}% (🟢 +{diff}%)")
-                elif diff > 0:
-                    st.write(f"⚡ **{attr} (Cascada)**: {val_final}% (🟢 +{diff}%)")
-                else:
-                    st.write(f"⚪ **{attr}**: {val_orig}% (0.0%)")
-
-        with col_res_fis:
-            st.markdown("#### ⚡ Físico & Mental")
-            for attr in ATTR_FISICO:
-                val_orig = valores_actuales[attr]
-                val_final = round(atributos_dinamicos[attr], 1)
-                diff = round(val_final - val_orig, 1)
-                if attr == meta_attr:
-                    st.write(f"🎯 **{attr} (META)**: {val_final}% (🟢 +{diff}%)")
-                elif diff > 0:
-                    st.write(f"⚡ **{attr} (Cascada)**: {val_final}% (🟢 +{diff}%)")
-                else:
-                    st.write(f"⚪ **{attr}**: {val_orig}% (0.0%)")
