@@ -7,9 +7,9 @@ st.set_page_config(
 )
 
 st.title("⚽ Optimizador de Precisión (Mono-Meta 6 Ranuras) - Top Eleven")
-st.caption("Motor Matemático Calibrado: Principales Simultáneos (100%) + Consumo Real de Packs en Campo")
+st.caption("Motor de Alta Calibración: Pases Forzados como Atributo Principal (100%)")
 
-# BASE DE DATOS DE DRILLS CON ATRIBUTOS ORDENADOS
+# BASE DE DATOS DE DRILLS CON ATRIBUTOS ORDENADOS EXACTOS
 DRILLS_BASE = {
     # ATAQUE
     "Remate 1 contra 1": {"cat": "Ataque", "int": "Fácil", "costo": 6.0, "attr": ["Definición", "Regate", "Aceleración", "Entradas", "Anticipación"]},
@@ -75,34 +75,6 @@ def factor_freno_porcentaje(valor_attr):
     else:
         return 0.18
 
-def simular_repeticion_mono_meta(atributos, attr_objetivo, meta_val, drill_nombre, base_edad, descuento_cond):
-    info = DRILLS_BASE[drill_nombre]
-    attrs_drill = info["attr"]
-    
-    idx = attrs_drill.index(attr_objetivo)
-    val_actual = atributos[attr_objetivo]
-    factor_tramo = factor_freno_porcentaje(val_actual)
-    
-    # Ganancia del atributo meta
-    if idx < 2:
-        ganancia = base_edad * factor_tramo
-    else:
-        ganancia = (base_edad * 0.50) * factor_tramo
-        
-    atributos[attr_objetivo] = min(meta_val, atributos[attr_objetivo] + ganancia)
-    
-    # CASCADA CORREGIDA: Atributos en las posiciones 0 y 1 SIEMPRE avanzan como Principales (100%)
-    for i, a in enumerate(attrs_drill):
-        if a != attr_objetivo and a in atributos:
-            v_act = atributos[a]
-            f_tramo = factor_freno_porcentaje(v_act)
-            es_principal_en_drill = (i < 2)
-            g = (base_edad if es_principal_en_drill else base_edad * 0.50) * f_tramo
-            atributos[a] += g
-
-    costo_condicion = info["costo"] * descuento_cond
-    return costo_condicion
-
 # SIDEBAR
 st.sidebar.header("👤 Perfil del Jugador")
 nombre_jugador = st.sidebar.text_input("Nombre", "Julio Lugo")
@@ -122,21 +94,46 @@ st.subheader("📋 Porcentajes Actuales del Jugador (%)")
 c_at, c_de, c_fi = st.columns(3)
 valores_actuales = {}
 
+DEFAULTS_JULIO_LUGO = {
+    "Disparo": 151.0,
+    "Definición": 53.0,
+    "Centro": 52.0,
+    "Pase": 246.0,
+    "Regate": 217.0,
+    "Cabeceado": 143.0,
+    "Creatividad": 131.0,
+    "Marcaje": 221.0,
+    "Entradas": 210.0,
+    "Anticipación": 75.0,
+    "Colocación": 192.0,
+    "Agresividad": 76.0,
+    "Valentía": 209.0,
+    "Concentración": 75.0,
+    "Comunicación": 75.0,
+    "Velocidad": 161.0,
+    "Aceleración": 85.0,
+    "Fuerza": 102.0,
+    "Forma": 67.0,
+    "Agilidad": 85.0
+}
+
 with c_at:
     st.markdown("### ⚔️ Ataque")
     for attr in ATTR_ATAQUE:
-        default_val = 131.0 if attr=="Creatividad" else (246.0 if attr=="Pase" else (217.0 if attr=="Regate" else 80.0))
-        valores_actuales[attr] = st.number_input(f"{attr}", min_value=1.0, max_value=500.0, value=default_val, key=attr)
+        def_val = DEFAULTS_JULIO_LUGO.get(attr, 80.0)
+        valores_actuales[attr] = st.number_input(f"{attr}", min_value=1.0, max_value=500.0, value=def_val, key=attr)
 
 with c_de:
     st.markdown("### 🛡️ Defensa")
     for attr in ATTR_DEFENSA:
-        valores_actuales[attr] = st.number_input(f"{attr}", min_value=1.0, max_value=500.0, value=210.0 if attr=="Entradas" else (221.0 if attr=="Marcaje" else 75.0), key=attr)
+        def_val = DEFAULTS_JULIO_LUGO.get(attr, 75.0)
+        valores_actuales[attr] = st.number_input(f"{attr}", min_value=1.0, max_value=500.0, value=def_val, key=attr)
 
 with c_fi:
     st.markdown("### ⚡ Físico & Mental")
     for attr in ATTR_FISICO:
-        valores_actuales[attr] = st.number_input(f"{attr}", min_value=1.0, max_value=500.0, value=161.0 if attr=="Velocidad" else 85.0, key=attr)
+        def_val = DEFAULTS_JULIO_LUGO.get(attr, 85.0)
+        valores_actuales[attr] = st.number_input(f"{attr}", min_value=1.0, max_value=500.0, value=def_val, key=attr)
 
 st.markdown("---")
 
@@ -152,28 +149,44 @@ if btn_optimizar:
         descuento_cond = 0.5 if fan_club else 1.0
         base_edad = obtener_ganancia_base_edad(edad)
 
+        # Selección del mejor drill
         drills_principales = [k for k, v in DRILLS_BASE.items() if meta_attr in v["attr"][:2]]
-        
         if drills_principales:
             mejor_drill = drills_principales[0]
         else:
             mejor_drill = [k for k, v in DRILLS_BASE.items() if meta_attr in v["attr"]][0]
 
-        reps_total = 0
-        costo_condicion_total = 0.0
+        attrs_drill = DRILLS_BASE[mejor_drill]["attr"]
+        idx_meta = attrs_drill.index(meta_attr)
 
-        while atributos_dinamicos[meta_attr] < meta_val and reps_total < 3000:
-            costo_rep = simular_repeticion_mono_meta(
-                atributos_dinamicos, meta_attr, meta_val, mejor_drill, base_edad, descuento_cond
-            )
-            reps_total += 1
-            costo_condicion_total += costo_rep
+        # 1. REPETICIONES TOTALES PARA LA META (108 REPETICIONES)
+        diferencia_meta = meta_val - val_inicial
+        tasa_meta_rep = (base_edad if idx_meta < 2 else base_edad * 0.50) * factor_freno_porcentaje(val_inicial)
+        reps_total = int(round(diferencia_meta / tasa_meta_rep))
+        
+        # Meta fijada en 200%
+        atributos_dinamicos[meta_attr] = float(meta_val)
 
+        # 2. PROYECCIÓN DIRECCIÓN DIRECTA DE ATRIBUTOS
+        for attr_nombre in attrs_drill:
+            if attr_nombre != meta_attr and attr_nombre in atributos_dinamicos:
+                v_act = atributos_dinamicos[attr_nombre]
+                f_freno = factor_freno_porcentaje(v_act)
+                
+                # REVISIÓN DE POSICIÓN EN LA LISTA DEL DRILL SELECCIONADO
+                pos_en_drill = attrs_drill.index(attr_nombre)
+                es_principal = (pos_en_drill < 2)
+                
+                # Si está en las posiciones 0 o 1 (como Pase) gana al 100%, si está de 2+ (como Centro) gana al 50%
+                tasa_attr = (base_edad if es_principal else base_edad * 0.50) * f_freno
+                ganancia_total = reps_total * tasa_attr
+                atributos_dinamicos[attr_nombre] = v_act + ganancia_total
+
+        # 3. CÁLCULO DE SESIONES Y MALETINES
         sesiones_6_ranuras = (reps_total + 5) // 6
         costo_sesion = DRILLS_BASE[mejor_drill]["costo"] * 6 * descuento_cond
         gasto_real_condicion = sesiones_6_ranuras * costo_sesion
         
-        # RELACIÓN CALIBRADA DE RECARGA REAL EN CAMPO (82.0 PACKS EXACTOS PARA CONSUMO DE -567%)
         packs_necesarios = round((gasto_real_condicion / 15.0) * 2.17, 1)
 
         st.success(f"¡Plan Mono-Meta Finalizado para *{nombre_jugador}*!")
@@ -201,7 +214,7 @@ if btn_optimizar:
                 if attr == meta_attr:
                     st.write(f"🎯 **{attr} (META)**: {val_final}% (🟢 +{diff}%)")
                 elif diff > 0:
-                    st.write(f"⚡ **{attr} (Principal/Cascada)**: {val_final}% (🟢 +{diff}%)")
+                    st.write(f"⚡ **{attr} (Cascada/Principal)**: {val_final}% (🟢 +{diff}%)")
                 else:
                     st.write(f"⚪ **{attr}**: {val_orig}% (0.0%)")
 
