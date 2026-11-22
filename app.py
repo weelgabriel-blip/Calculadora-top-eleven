@@ -1,13 +1,13 @@
 import streamlit as st
 
 st.set_page_config(
-    page_title="Optimizador Mono-Meta v3.2 - Top Eleven",
+    page_title="Optimizador Mono-Meta v3.3 - Top Eleven",
     page_icon="⚽",
     layout="wide"
 )
 
-st.title("⚽ Optimizador de Precisión Mono-Meta (v3.2) - Top Eleven")
-st.caption("Estructura corregida: Separación estricta de atributos de Portero (GK) vs Jugadores de Campo.")
+st.title("⚽ Optimizador de Precisión Mono-Meta (v3.3 Recalibrado) - Top Eleven")
+st.caption("Fórmula recalibrada con curva de saturación progresiva, gasto real en packs y separación GK/Campo.")
 
 # DICCIONARIO BASE DE EJERCICIOS
 DRILLS_BASE = {
@@ -94,13 +94,13 @@ def obtener_factor_edad(edad):
 
 # SIDEBAR
 st.sidebar.header("👤 Perfil del Jugador")
-nombre_jugador = st.sidebar.text_input("Nombre", "Julio Lugo")
-edad = st.sidebar.slider("Edad", 18, 36, 23)
+nombre_jugador = st.sidebar.text_input("Nombre", "Tomas Celustka")
+edad = st.sidebar.slider("Edad", 18, 36, 19)
 
 roles_seleccionados = st.sidebar.multiselect(
     "Roles del Jugador (Máx. 3)",
     options=list(HABILIDADES_BLANCAS_POR_ROL.keys()),
-    default=["MC", "DMC"],
+    default=["DL"],
     max_selections=3
 )
 
@@ -108,9 +108,8 @@ es_portero = "GK" in roles_seleccionados
 blancas_jugador = obtener_blancas_combinadas(roles_seleccionados)
 
 fan_club = st.sidebar.checkbox("Descuento Club de Fans (-50%)", value=True)
-packs_disponibles = st.sidebar.number_input("Green Packs en cuenta", min_value=0, max_value=5000, value=2000)
+packs_disponibles = st.sidebar.number_input("Green Packs en cuenta", min_value=0, max_value=10000, value=2205)
 
-# LISTA DINÁMICA DE ATRIBUTOS PARA LA META
 if es_portero:
     TODOS_ATRIBUTOS = sorted(list(set(ATTR_GK_DEFENSA + ATTR_CAMPO_FISICO)))
 else:
@@ -118,17 +117,17 @@ else:
 
 st.sidebar.markdown("---")
 st.sidebar.header("🎯 Configuración de META ÚNICA")
-meta_attr = st.sidebar.selectbox("Atributo Objetivo", TODOS_ATRIBUTOS, index=0)
-meta_val = st.sidebar.number_input("Porcentaje Meta (%)", min_value=1.0, max_value=500.0, value=230.0)
+meta_attr = st.sidebar.selectbox("Atributo Objetivo", TODOS_ATRIBUTOS, index=TODOS_ATRIBUTOS.index("Entradas") if "Entradas" in TODOS_ATRIBUTOS else 0)
+meta_val = st.sidebar.number_input("Porcentaje Meta (%)", min_value=1.0, max_value=500.0, value=201.0)
 nivel_drill = st.sidebar.selectbox("Nivel del Ejercicio", list(MULT_NIVEL_DRILL.keys()), index=list(MULT_NIVEL_DRILL.keys()).index("Clase Mundial"))
 
 # PANEL CENTRAL
 st.subheader("📋 Porcentajes Actuales del Jugador (%)")
 
-defaults_julio = {
-    "Pase": 246.0, "Creatividad": 131.0, "Centro": 92.0, "Disparo": 151.0, "Definición": 53.0,
-    "Regate": 217.0, "Cabeceado": 143.0, "Marcaje": 221.0, "Entradas": 210.0, "Colocación": 192.0,
-    "Valentía": 209.0, "Velocidad": 161.0, "Fuerza": 102.0
+defaults_jugador = {
+    "Entradas": 201.0, "Marcaje": 183.0, "Colocación": 92.0, "Cabeceado": 81.0, "Valentía": 169.0,
+    "Pase": 67.0, "Regate": 99.0, "Centro": 101.0, "Disparo": 79.0, "Definición": 65.0,
+    "Fuerza": 106.0, "Agresividad": 99.0, "Velocidad": 90.0, "Creatividad": 58.0
 }
 
 valores_actuales = {}
@@ -138,85 +137,91 @@ if es_portero:
     with c_gk:
         st.markdown("### 🧤 Defensa de Portería")
         for attr in ATTR_GK_DEFENSA:
-            val_def = defaults_julio.get(attr, 100.0)
+            val_def = defaults_jugador.get(attr, 100.0)
             valores_actuales[attr] = st.number_input(f"{attr}", min_value=0.0, max_value=500.0, value=val_def, key=f"gk_{attr}")
     with c_fi:
         st.markdown("### ⚡ Físico & Mental")
         for attr in ATTR_CAMPO_FISICO:
-            val_def = defaults_julio.get(attr, 100.0)
+            val_def = defaults_jugador.get(attr, 100.0)
             valores_actuales[attr] = st.number_input(f"{attr}", min_value=0.0, max_value=500.0, value=val_def, key=f"gk_fi_{attr}")
 else:
     c_at, c_de, c_fi = st.columns(3)
     with c_at:
         st.markdown("### ⚔️ Ataque")
         for attr in ATTR_CAMPO_ATAQUE:
-            val_def = defaults_julio.get(attr, 0.0)
+            val_def = defaults_jugador.get(attr, 0.0)
             valores_actuales[attr] = st.number_input(f"{attr}", min_value=0.0, max_value=500.0, value=val_def, key=f"f_{attr}")
     with c_de:
         st.markdown("### 🛡️ Defensa")
         for attr in ATTR_CAMPO_DEFENSA:
-            val_def = defaults_julio.get(attr, 0.0)
+            val_def = defaults_jugador.get(attr, 0.0)
             valores_actuales[attr] = st.number_input(f"{attr}", min_value=0.0, max_value=500.0, value=val_def, key=f"f_{attr}")
     with c_fi:
         st.markdown("### ⚡ Físico & Mental")
         for attr in ATTR_CAMPO_FISICO:
-            val_def = defaults_julio.get(attr, 0.0)
+            val_def = defaults_jugador.get(attr, 0.0)
             valores_actuales[attr] = st.number_input(f"{attr}", min_value=0.0, max_value=500.0, value=val_def, key=f"f_{attr}")
 
 st.markdown("---")
 
 def seleccionar_mejor_ejercicio_eficiente(attr_meta, atributos_jugador):
-    """Selecciona el ejercicio con el menor promedio de atributos activos en la ficha del jugador."""
+    """Selecciona el ejercicio con menor promedio de atributos activos en la ficha del jugador."""
     candidatos = []
     for nombre, info in DRILLS_BASE.items():
         if attr_meta in info["attr"]:
-            # Filtrar solo atributos que el jugador realmente posee
             attrs_validos = [a for a in info["attr"] if a in atributos_jugador]
             if attrs_validos:
                 promedio = sum([atributos_jugador[a] for a in attrs_validos]) / len(attrs_validos)
                 candidatos.append((nombre, promedio, info["costo"]))
-    
+
     if not candidatos:
         return None
-    
-    # Ordenar por el ejercicio que tenga el promedio de atributos más bajo (menos freno del cap)
+
     candidatos.sort(key=lambda x: x[1])
     return candidatos[0][0]
 
-def simular_sesion_exacta_v3_2(atributos, attr_objetivo, meta_val, drill_nombre, nivel_drill, edad, descuento_cond, blancas):
+def simular_sesion_recalibrada_v3_3(atributos, attr_objetivo, meta_val, drill_nombre, nivel_drill, edad, descuento_cond, blancas, rep_actual):
     info = DRILLS_BASE[drill_nombre]
-    # Atributos del ejercicio que existen en el jugador
     attrs_drill = [a for a in info["attr"] if a in atributos]
-    
+
     factor_edad = obtener_factor_edad(edad)
     mult_nivel = MULT_NIVEL_DRILL[nivel_drill]
-    
+
+    # 1. Freno progresivo por saturación del ejercicio y nivel del atributo objetivo
     vals_drill = [atributos[a] for a in attrs_drill]
-    suma_actual = sum(vals_drill)
-    cap_maximo = len(attrs_drill) * 180.0
-    
-    desarrollo_pct = min(1.0, suma_actual / cap_maximo) if cap_maximo > 0 else 0.0
-    freno_desarrollo = max(0.15, 1.0 - 0.65 * desarrollo_pct)
-    
-    incremento_sesion_blanca = 1.35 * factor_edad * mult_nivel * freno_desarrollo
-    
+    promedio_drill = sum(vals_drill) / len(vals_drill) if vals_drill else 0.0
+    saturacion_drill = min(1.2, promedio_drill / 180.0)
+
+    # Penalización adicional cuando el atributo objetivo ya está por encima de 180%
+    nivel_objetivo = atributos.get(attr_objetivo, 0.0)
+    freno_techo = max(0.10, 1.0 - max(0.0, (nivel_objetivo - 150.0) / 150.0) * 0.75)
+
+    # Decaimiento suave por repeticiones acumuladas
+    freno_repeticion = max(0.25, 1.0 / (1.0 + (rep_actual * 0.008)))
+
+    freno_total = max(0.08, (1.0 - 0.55 * saturacion_drill) * freno_techo * freno_repeticion)
+
+    # 2. Incremento calibrado por sesión
+    incremento_sesion_blanca = 0.85 * factor_edad * mult_nivel * freno_total
+
     for a in attrs_drill:
         mult_color = 1.0 if a in blancas else 0.5
         inc = incremento_sesion_blanca * mult_color
         atributos[a] += inc
 
-    costo_base_sesion = info["costo"] * 2.162
+    # 3. Costo calibrado para alinear gasto de condición con maletines reales
+    costo_base_sesion = info["costo"] * 1.69
     costo_condicion_sesion = costo_base_sesion * descuento_cond
     return costo_condicion_sesion
 
-btn_optimizar = st.button("🚀 CALCULAR ENTRENAMIENTO MONO-META v3.2", type="primary", use_container_width=True)
+btn_optimizar = st.button("🚀 CALCULAR ENTRENAMIENTO MONO-META v3.3", type="primary", use_container_width=True)
 
 if btn_optimizar:
     atributos_dinamicos = valores_actuales.copy()
     val_inicial = atributos_dinamicos[meta_attr]
 
     if val_inicial >= meta_val:
-        st.warning(f"El atributo {meta_attr} ya alcanzó la meta ({val_inicial}% >= {meta_val}%).")
+        st.warning(f"El atributo {meta_attr} ya alcanzó o superó la meta ({val_inicial}% >= {meta_val}%).")
     else:
         descuento_cond = 0.5 if fan_club else 1.0
         mejor_drill = seleccionar_mejor_ejercicio_eficiente(meta_attr, atributos_dinamicos)
@@ -228,15 +233,15 @@ if btn_optimizar:
             costo_condicion_total = 0.0
 
             while atributos_dinamicos[meta_attr] < meta_val and reps_total < 3000:
-                costo_sesion = simular_sesion_exacta_v3_2(
-                    atributos_dinamicos, meta_attr, meta_val, mejor_drill, nivel_drill, edad, descuento_cond, blancas_jugador
+                costo_sesion = simular_sesion_recalibrada_v3_3(
+                    atributos_dinamicos, meta_attr, meta_val, mejor_drill, nivel_drill, edad, descuento_cond, blancas_jugador, reps_total
                 )
                 reps_total += 1
                 costo_condicion_total += costo_sesion
 
             packs_necesarios = round(costo_condicion_total / 15.0, 1)
 
-            st.success(f"¡Plan Mono-Meta Finalizado para *{nombre_jugador}*!")
+            st.success(f"¡Plan Mono-Meta Finalizado para {nombre_jugador}!")
 
             k1, k2, k3 = st.columns(3)
             k1.metric("Gasto Total Condición", f"-{round(costo_condicion_total, 1)}%")
@@ -245,7 +250,7 @@ if btn_optimizar:
 
             st.markdown("---")
             st.subheader("📋 Rutina Seleccionada")
-            st.info(f"🎯 Ejercicio Recomendado: **{mejor_drill}** ({nivel_drill}) ➡️ **{reps_total} repeticiones** (Gasto: -{round(costo_condicion_total, 1)}% Condición)")
+            st.info(f"🎯 Ejercicio Recomendado: *{mejor_drill}* ({nivel_drill}) ➡️ *{reps_total} repeticiones* (Gasto: -{round(costo_condicion_total, 1)}% Condición)")
 
             st.markdown("---")
             st.subheader("📊 Ficha Técnica Proyectada (Cascadas Exactas)")
@@ -259,11 +264,11 @@ if btn_optimizar:
                         val_final = round(atributos_dinamicos[attr], 1)
                         diff = round(val_final - val_orig, 1)
                         if attr == meta_attr:
-                            st.write(f"🎯 **{attr} (META)**: {val_final}% (🟢 +{diff}%)")
+                            st.write(f"🎯 *{attr} (META)*: {val_final}% (🟢 +{diff}%)")
                         elif diff > 0:
-                            st.write(f"⚡ **{attr} (Cascada)**: {val_final}% (🟢 +{diff}%)")
+                            st.write(f"⚡ *{attr} (Cascada)*: {val_final}% (🟢 +{diff}%)")
                         else:
-                            st.write(f"⚪ **{attr}**: {val_orig}% (0.0%)")
+                            st.write(f"⚪ *{attr}*: {val_orig}% (0.0%)")
                 with col_fi:
                     st.markdown("#### ⚡ Físico & Mental")
                     for attr in ATTR_CAMPO_FISICO:
@@ -271,11 +276,11 @@ if btn_optimizar:
                         val_final = round(atributos_dinamicos[attr], 1)
                         diff = round(val_final - val_orig, 1)
                         if attr == meta_attr:
-                            st.write(f"🎯 **{attr} (META)**: {val_final}% (🟢 +{diff}%)")
+                            st.write(f"🎯 *{attr} (META)*: {val_final}% (🟢 +{diff}%)")
                         elif diff > 0:
-                            st.write(f"⚡ **{attr} (Cascada)**: {val_final}% (🟢 +{diff}%)")
+                            st.write(f"⚡ *{attr} (Cascada)*: {val_final}% (🟢 +{diff}%)")
                         else:
-                            st.write(f"⚪ **{attr}**: {val_orig}% (0.0%)")
+                            st.write(f"⚪ *{attr}*: {val_orig}% (0.0%)")
             else:
                 col_res_ataq, col_res_def, col_res_fis = st.columns(3)
                 with col_res_ataq:
@@ -285,11 +290,11 @@ if btn_optimizar:
                         val_final = round(atributos_dinamicos[attr], 1)
                         diff = round(val_final - val_orig, 1)
                         if attr == meta_attr:
-                            st.write(f"🎯 **{attr} (META)**: {val_final}% (🟢 +{diff}%)")
+                            st.write(f"🎯 *{attr} (META)*: {val_final}% (🟢 +{diff}%)")
                         elif diff > 0:
-                            st.write(f"⚡ **{attr} (Cascada)**: {val_final}% (🟢 +{diff}%)")
+                            st.write(f"⚡ *{attr} (Cascada)*: {val_final}% (🟢 +{diff}%)")
                         else:
-                            st.write(f"⚪ **{attr}**: {val_orig}% (0.0%)")
+                            st.write(f"⚪ *{attr}*: {val_orig}% (0.0%)")
 
                 with col_res_def:
                     st.markdown("#### 🛡️ Defensa")
@@ -298,11 +303,11 @@ if btn_optimizar:
                         val_final = round(atributos_dinamicos[attr], 1)
                         diff = round(val_final - val_orig, 1)
                         if attr == meta_attr:
-                            st.write(f"🎯 **{attr} (META)**: {val_final}% (🟢 +{diff}%)")
+                            st.write(f"🎯 *{attr} (META)*: {val_final}% (🟢 +{diff}%)")
                         elif diff > 0:
-                            st.write(f"⚡ **{attr} (Cascada)**: {val_final}% (🟢 +{diff}%)")
+                            st.write(f"⚡ *{attr} (Cascada)*: {val_final}% (🟢 +{diff}%)")
                         else:
-                            st.write(f"⚪ **{attr}**: {val_orig}% (0.0%)")
+                            st.write(f"⚪ *{attr}*: {val_orig}% (0.0%)")
 
                 with col_res_fis:
                     st.markdown("#### ⚡ Físico & Mental")
@@ -311,8 +316,8 @@ if btn_optimizar:
                         val_final = round(atributos_dinamicos[attr], 1)
                         diff = round(val_final - val_orig, 1)
                         if attr == meta_attr:
-                            st.write(f"🎯 **{attr} (META)**: {val_final}% (🟢 +{diff}%)")
+                            st.write(f"🎯 *{attr} (META)*: {val_final}% (🟢 +{diff}%)")
                         elif diff > 0:
-                            st.write(f"⚡ **{attr} (Cascada)**: {val_final}% (🟢 +{diff}%)")
+                            st.write(f"⚡ *{attr} (Cascada)*: {val_final}% (🟢 +{diff}%)")
                         else:
-                            st.write(f"⚪ **{attr}**: {val_orig}% (0.0%)")
+                            st.write(f"⚪ *{attr}*: {val_orig}% (0.0%)")
